@@ -16,9 +16,12 @@ package stern
 
 import (
 	"bufio"
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
@@ -45,6 +48,7 @@ type TailOptions struct {
 	Exclude      []*regexp.Regexp
 	Namespace    bool
 	TailLines    *int64
+	JSON         bool
 }
 
 // NewTail returns a new tail for a Kubernetes container inside a pod
@@ -153,11 +157,40 @@ func (t *Tail) Close() {
 
 // Print prints a color coded log message with the pod and container names
 func (t *Tail) Print(msg string) {
+	if t.Options.JSON {
+		var jslog map[string]interface{}
+		if err := json.Unmarshal([]byte(msg), &jslog); err == nil {
+			buf := new(bytes.Buffer)
+			jsonToString(buf, "", jslog)
+			msg = buf.String()
+		}
+	}
+
 	p := t.podColor.SprintFunc()
 	c := t.containerColor.SprintFunc()
 	if t.Options.Namespace {
 		fmt.Printf("%s %s %s %s", p(t.Namespace), p(t.PodName), c(t.ContainerName), msg)
 	} else {
 		fmt.Printf("%s %s %s", p(t.PodName), c(t.ContainerName), msg)
+	}
+}
+
+func jsonToString(buf *bytes.Buffer, prefix string, jslog map[string]interface{}) {
+	for k, obj := range jslog {
+		objMap, ok := obj.(map[string]interface{})
+		if ok {
+			jsonToString(buf, prefix+k+".", objMap)
+		} else {
+			s := fmt.Sprintf("%v", obj)
+			if strings.ContainsRune(s, '\n') {
+				fmt.Fprintf(buf, "\n%s%s=%s\n", prefix, k, s)
+			} else {
+				fmt.Fprintf(buf, "%s%s=%s ", prefix, k, s)
+			}
+		}
+	}
+	
+	if prefix == "" && !strings.HasSuffix(buf.String(), "\n") {
+		buf.WriteRune('\n')
 	}
 }

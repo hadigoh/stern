@@ -49,6 +49,7 @@ type Options struct {
 	color         string
 	version       bool
 	completion    string
+	json          bool
 }
 
 var opts = &Options{
@@ -72,6 +73,7 @@ func Run() {
 	cmd.Flags().MarkDeprecated("kube-config", "Use --kubeconfig instead.")
 	cmd.Flags().StringSliceVarP(&opts.exclude, "exclude", "e", opts.exclude, "Regex of log lines to exclude")
 	cmd.Flags().BoolVar(&opts.allNamespaces, "all-namespaces", opts.allNamespaces, "If present, tail across all namespaces. A specific namespace is ignored even if specified with --namespace.")
+	cmd.Flags().BoolVar(&opts.json, "json", opts.json, "Try to parse log as json")
 	cmd.Flags().StringVarP(&opts.selector, "selector", "l", opts.selector, "Selector (label query) to filter on. If present, default to \".*\" for the pod-query.")
 	cmd.Flags().Int64Var(&opts.tail, "tail", opts.tail, "The number of lines from the end of the logs to show. Defaults to -1, showing all logs.")
 	cmd.Flags().StringVar(&opts.color, "color", opts.color, "Color output. Can be 'always', 'never', or 'auto'")
@@ -199,6 +201,7 @@ func parseConfig(args []string) (*stern.Config, error) {
 		AllNamespaces:  opts.allNamespaces,
 		LabelSelector:  labelSelector,
 		TailLines:      tailLines,
+		JSON:           opts.json,
 	}, nil
 }
 
